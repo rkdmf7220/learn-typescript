@@ -21,6 +21,8 @@ module.exports = {
         printWidth: 80,
         bracketSpacing: true,
         arrowParens: 'avoid',
+        endOfLine: "auto",
+        prefixWithI: "always"
       },
     ],
     '@typescript-eslint/no-explicit-any': 'off',
