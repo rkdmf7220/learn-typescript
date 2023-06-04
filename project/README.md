@@ -2,6 +2,16 @@
 
 최종 프로젝트 폴더입니다
 
+## JS 프로젝트에 TS 적용하기
+
+0. 자바스크립트 파일에 JSDoc으로 타입 시스템 입히기
+1. TS의 기본 환경 구성
+   - [x] NPM 초기화
+   - [x] TS 라이브러리 설치
+   - [x] TS 설정 파일 생성 및 기본 값 추가
+   - [x] JS 파일을 TS 파일로 변환
+   - [x] `tsc` 명령어로 TS 컴파일 하기
+
 ## 참고 자료
 
 - [존스 홉킨스 코로나 현황](https://www.arcgis.com/apps/opsdashboard/index.html#/bda7594740fd40299423467b48e9ecf6)
