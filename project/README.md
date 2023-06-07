@@ -11,6 +11,8 @@
    - [x] TS 설정 파일 생성 및 기본 값 추가
    - [x] JS 파일을 TS 파일로 변환
    - [x] `tsc` 명령어로 TS 컴파일 하기
+2. 명시적인 `any` 선언하기
+   - `tsconfig.json` 파일에 `noImplicitAny` 값을 `true`로 추가
 
 ## 참고 자료
 
