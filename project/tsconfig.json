@@ -2,11 +2,20 @@
   "compilerOptions": {
     "allowJs": true,
     "target": "ES5",
-    "outDir": "./built",
+    "outDir": "./build",
     "moduleResolution": "Node",
     "lib": ["ES2015", "DOM", "DOM.Iterable"],
     "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "strict": true,
+    "esModuleInterop": true,
     "typeRoots": ["./nude_modules/@types", "./types"]
   },
-  "include": ["./src/**/*"]
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
