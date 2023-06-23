@@ -3,15 +3,18 @@
 
 // variable, function import
 // import {} from 'file relative path'
-import axios from "axios";
-import * as Chart from "chart.js";
-// import Chart from "chart.js";
+import {API_KEY} from "./contants";
+import axios, {AxiosResponse} from "axios";
+import {Chart} from "chart.js/auto";
+// type module
+import {ICovidData, ICovidItem} from "./interfaces/CovidInterface"
 
 // utils
 function $(selector: string) {
   return document.querySelector(selector);
 }
-function getUnixTimestamp(date: Date) {
+
+function getUnixTimestamp(date: Date | string) {
   return new Date(date).getTime();
 }
 
@@ -20,9 +23,9 @@ const confirmedTotal = $(".confirmed-total") as HTMLSpanElement;
 const deathsTotal = $(".deaths") as HTMLParagraphElement;
 const recoveredTotal = $(".recovered") as HTMLParagraphElement;
 const lastUpdatedTime = $(".last-updated-time") as HTMLParagraphElement;
-const rankList = $(".rank-list");
-const deathsList = $(".deaths-list");
-const recoveredList = $(".recovered-list");
+const rankList = $(".rank-list") as HTMLOListElement;
+const deathsList = $(".deaths-list") as HTMLOListElement;
+const recoveredList = $(".recovered-list") as HTMLOListElement;
 const deathSpinner = createSpinnerElement("deaths-spinner");
 const recoveredSpinner = createSpinnerElement("recovered-spinner");
 
@@ -43,23 +46,15 @@ function createSpinnerElement(id: string) {
 
 // state
 let isDeathLoading = false;
-const isRecoveredLoading = false;
 
 // api
-function fetchCovidSummary() {
-  const url = "https://api.covid19api.com/summary";
+function getCovidData(): Promise<AxiosResponse<ICovidData>> {
+  const url = `https://apis.data.go.kr/1352000/ODMS_COVID_04/callCovid04Api?serviceKey=${API_KEY}&pageNo=1&numOfRows=500&apiType=JSON&std_day=2023-06-19`;
   return axios.get(url);
 }
 
-enum CovidStatus {
-  Confirmed = "confirmed",
-  Recovered = "recovered",
-  Deaths = "deaths",
-}
-
-function fetchCountryInfo(countryCode: string, status: CovidStatus) {
-  // statusparams: confirmed, recovered, deaths
-  const url = `https://api.covid19api.com/country/${countryCode}/status/${status}`;
+function fetchCountryInfo(locationName: string): Promise<AxiosResponse<ICovidData>> {
+  const url = `https://apis.data.go.kr/1352000/ODMS_COVID_04/callCovid04Api?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&apiType=JSON&gubun=${locationName}`;
   return axios.get(url);
 }
 
@@ -74,8 +69,8 @@ function initEvents() {
   rankList.addEventListener("click", handleListClick);
 }
 
-async function handleListClick(event: any) {
-  let selectedId;
+async function handleListClick(event: MouseEvent) {
+  let selectedId = '경기';
   if (
     event.target instanceof HTMLParagraphElement ||
     event.target instanceof HTMLSpanElement
@@ -92,39 +87,43 @@ async function handleListClick(event: any) {
   clearRecoveredList();
   startLoadingAnimation();
   isDeathLoading = true;
-  const { data: deathResponse } = await fetchCountryInfo(
-    selectedId,
-    CovidStatus.Deaths
-  );
-  const { data: recoveredResponse } = await fetchCountryInfo(
-    selectedId,
-    CovidStatus.Recovered
-  );
-  const { data: confirmedResponse } = await fetchCountryInfo(
-    selectedId,
-    CovidStatus.Recovered
-  );
+  // const {data: deathResponse} = await fetchCountryInfo(
+  //   selectedId,
+  //   CovidStatus.Deaths
+  // );
+  // const {data: recoveredResponse} = await fetchCountryInfo(
+  //   selectedId,
+  //   CovidStatus.Recovered
+  // );
+  // const {data: confirmedResponse} = await fetchCountryInfo(
+  //   selectedId,
+  //   CovidStatus.Recovered
+  // );
+  // const {data: covidResponse} = await getCovidData();
+  const {data: locationCovidResponse} = await fetchCountryInfo(selectedId);
+  // console.log("covidResponse >>", covidResponse);
+  console.log('locationCovidResponse >>', locationCovidResponse)
   endLoadingAnimation();
-  setDeathsList(deathResponse);
-  setTotalDeathsByCountry(deathResponse);
-  setRecoveredList(recoveredResponse);
-  setTotalRecoveredByCountry(recoveredResponse);
-  setChartData(confirmedResponse);
+  setDeathsList(locationCovidResponse);
+  setTotalDeathsByCountry(locationCovidResponse);
+  setRecoveredList(locationCovidResponse);
+  setTotalRecoveredByCountry(locationCovidResponse);
+  setChartData(locationCovidResponse);
   isDeathLoading = false;
 }
 
-function setDeathsList(data: any) {
-  const sorted = data.sort(
-    (a: any, b: any) => getUnixTimestamp(b.Date) - getUnixTimestamp(a.Date)
+function setDeathsList(data: ICovidData) {
+  const sorted = data.items.sort(
+    (a: ICovidItem, b: ICovidItem) => getUnixTimestamp(b.stdDay) - getUnixTimestamp(a.stdDay)
   );
-  sorted.forEach((value: any) => {
+  sorted.forEach((value: ICovidItem) => {
     const li = document.createElement("li");
     li.setAttribute("class", "list-item-b flex align-center");
     const span = document.createElement("span");
-    span.textContent = value.Cases;
+    span.textContent = value.deathCnt;
     span.setAttribute("class", "deaths");
     const p = document.createElement("p");
-    p.textContent = new Date(value.Date).toLocaleDateString().slice(0, -1);
+    p.textContent = new Date(value.stdDay).toLocaleDateString().slice(0, -1);
     li.appendChild(span);
     li.appendChild(p);
     deathsList.appendChild(li);
@@ -135,22 +134,22 @@ function clearDeathList() {
   deathsList.innerHTML = null;
 }
 
-function setTotalDeathsByCountry(data: any) {
-  deathsTotal.innerText = data[0].Cases;
+function setTotalDeathsByCountry(data: ICovidData) {
+  deathsTotal.innerText = data.items[0].deathCnt;
 }
 
-function setRecoveredList(data: any) {
-  const sorted = data.sort(
-    (a: any, b: any) => getUnixTimestamp(b.Date) - getUnixTimestamp(a.Date)
+function setRecoveredList(data: ICovidData) {
+  const sorted = data.items.sort(
+    (a: ICovidItem, b: ICovidItem) => getUnixTimestamp(b.stdDay) - getUnixTimestamp(a.stdDay)
   );
-  sorted.forEach((value: any) => {
+  sorted.forEach((value: ICovidItem) => {
     const li = document.createElement("li");
     li.setAttribute("class", "list-item-b flex align-center");
     const span = document.createElement("span");
-    span.textContent = value.Cases;
+    span.textContent = value.isolClearCnt;
     span.setAttribute("class", "recovered");
     const p = document.createElement("p");
-    p.textContent = new Date(value.Date).toLocaleDateString().slice(0, -1);
+    p.textContent = new Date(value.stdDay).toLocaleDateString().slice(0, -1);
     li.appendChild(span);
     li.appendChild(p);
     recoveredList.appendChild(li);
@@ -161,8 +160,8 @@ function clearRecoveredList() {
   recoveredList.innerHTML = null;
 }
 
-function setTotalRecoveredByCountry(data: any) {
-  recoveredTotal.innerText = data[0].Cases;
+function setTotalRecoveredByCountry(data: ICovidData) {
+  recoveredTotal.innerText = data.items[0].isolClearCnt;
 }
 
 function startLoadingAnimation() {
@@ -176,16 +175,18 @@ function endLoadingAnimation() {
 }
 
 async function setupData() {
-  const { data } = await fetchCovidSummary();
+  const { data } = await getCovidData();
   setTotalConfirmedNumber(data);
   setTotalDeathsByWorld(data);
   setTotalRecoveredByWorld(data);
   setCountryRanksByConfirmedCases(data);
-  setLastUpdatedTimestamp(data);
+  setLastUpdatedTimestamp(data.items[0]);
 }
 
-function renderChart(data: any, labels: any) {
-  const ctx = $("#lineChart").getContext("2d");
+function renderChart(data: string[], labels: string[]) {
+  // const lineChart = $("#lineChart") as HTMLCanvasElement
+  // const ctx = lineChart.getContext("2d");
+  const ctx = ($("#lineChart") as HTMLCanvasElement).getContext("2d");
   Chart.defaults.color = "#f5eaea";
   Chart.defaults.font.family = "Exo 2";
   new Chart(ctx, {
@@ -205,59 +206,61 @@ function renderChart(data: any, labels: any) {
   });
 }
 
-function setChartData(data: any) {
-  const chartData = data.slice(-14).map((value: any) => value.Cases);
-  const chartLabel = data
+function setChartData(data: ICovidData) {
+  const chartData = data.items.slice(-14).map((value: ICovidItem) => value.localOccCnt);
+  const chartLabel = data.items
     .slice(-14)
     .map((value: any) =>
-      new Date(value.Date).toLocaleDateString().slice(5, -1)
+      new Date(value.stdDay).toLocaleDateString().slice(5, -1)
     );
+  console.log('chartData >>', chartData)
   renderChart(chartData, chartLabel);
 }
 
-function setTotalConfirmedNumber(data: any) {
-  confirmedTotal.innerText = data.Countries.reduce(
-    (total: any, current: any) => (total += current.TotalConfirmed),
+function setTotalConfirmedNumber(data: ICovidData) {
+  confirmedTotal.innerText = data.items.reduce(
+    (total: number, current: ICovidItem) => (total += Number(current.defCnt)),
     0
-  );
+  ).toString();
 }
 
-function setTotalDeathsByWorld(data: any) {
-  deathsTotal.innerText = data.Countries.reduce(
-    (total: any, current: any) => (total += current.TotalDeaths),
+function setTotalDeathsByWorld(data: ICovidData) {
+  deathsTotal.innerText = data.items.reduce(
+    (total: number, current: ICovidItem) => (total += Number(current.deathCnt)),
     0
-  );
+  ).toString();
 }
 
-function setTotalRecoveredByWorld(data: any) {
-  recoveredTotal.innerText = data.Countries.reduce(
-    (total: any, current: any) => (total += current.TotalRecovered),
+function setTotalRecoveredByWorld(data: ICovidData) {
+  recoveredTotal.innerText = data.items.reduce(
+    (total: number, current: ICovidItem) => (total += Number(current.isolClearCnt)),
     0
-  );
+  ).toString();
 }
 
-function setCountryRanksByConfirmedCases(data: any) {
-  const sorted = data.Countries.sort(
-    (a: any, b: any) => b.TotalConfirmed - a.TotalConfirmed
+function setCountryRanksByConfirmedCases(data: ICovidData) {
+  const sorted = data.items.sort(
+    (a: ICovidItem, b: ICovidItem) => Number(b.defCnt) - Number(a.defCnt)
   );
-  sorted.forEach((value: any) => {
+  sorted.forEach((value: ICovidItem) => {
     const li = document.createElement("li");
     li.setAttribute("class", "list-item flex align-center");
-    li.setAttribute("id", value.Slug);
+    li.setAttribute("id", value.gubun);
     const span = document.createElement("span");
-    span.textContent = value.TotalConfirmed;
+    span.textContent = value.defCnt;
     span.setAttribute("class", "cases");
     const p = document.createElement("p");
     p.setAttribute("class", "country");
-    p.textContent = value.Country;
+    p.textContent = value.gubun;
     li.appendChild(span);
     li.appendChild(p);
     rankList.appendChild(li);
   });
 }
 
-function setLastUpdatedTimestamp(data: any) {
-  lastUpdatedTime.innerText = new Date(data.Date).toLocaleString();
+function setLastUpdatedTimestamp(data: ICovidItem) {
+  lastUpdatedTime.innerText = new Date(data.stdDay).toLocaleString();
+  console.log('stdDay >>', data.stdDay)
 }
 
 startApp();
