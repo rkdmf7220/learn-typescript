@@ -18,6 +18,14 @@ function getUnixTimestamp(date: Date | string) {
   return new Date(date).getTime();
 }
 
+// use generic type
+// function $<T extends HTMLElement>(selector: string) {
+// function $<T extends HTMLElement = HTMLDivElement>(selector: string) {
+//   const element = document.querySelector(selector);
+//   return element as T
+// }
+// const temp = $<HTMLParagraphElement>('.box-item')
+
 // DOM
 const confirmedTotal = $(".confirmed-total") as HTMLSpanElement;
 const deathsTotal = $(".deaths") as HTMLParagraphElement;
@@ -53,7 +61,7 @@ function getCovidData(): Promise<AxiosResponse<ICovidData>> {
   return axios.get(url);
 }
 
-function fetchCountryInfo(locationName: string): Promise<AxiosResponse<ICovidData>> {
+function fetchCountryInfo(locationName: string | undefined): Promise<AxiosResponse<ICovidData>> {
   const url = `https://apis.data.go.kr/1352000/ODMS_COVID_04/callCovid04Api?serviceKey=${API_KEY}&pageNo=1&numOfRows=10&apiType=JSON&gubun=${locationName}`;
   return axios.get(url);
 }
@@ -70,12 +78,12 @@ function initEvents() {
 }
 
 async function handleListClick(event: MouseEvent) {
-  let selectedId = '경기';
+  let selectedId
   if (
     event.target instanceof HTMLParagraphElement ||
     event.target instanceof HTMLSpanElement
   ) {
-    selectedId = event.target.parentElement.id;
+    selectedId = event.target.parentElement ? event.target.parentElement.id : undefined;
   }
   if (event.target instanceof HTMLLIElement) {
     selectedId = event.target.id;
@@ -87,21 +95,7 @@ async function handleListClick(event: MouseEvent) {
   clearRecoveredList();
   startLoadingAnimation();
   isDeathLoading = true;
-  // const {data: deathResponse} = await fetchCountryInfo(
-  //   selectedId,
-  //   CovidStatus.Deaths
-  // );
-  // const {data: recoveredResponse} = await fetchCountryInfo(
-  //   selectedId,
-  //   CovidStatus.Recovered
-  // );
-  // const {data: confirmedResponse} = await fetchCountryInfo(
-  //   selectedId,
-  //   CovidStatus.Recovered
-  // );
-  // const {data: covidResponse} = await getCovidData();
   const {data: locationCovidResponse} = await fetchCountryInfo(selectedId);
-  // console.log("covidResponse >>", covidResponse);
   console.log('locationCovidResponse >>', locationCovidResponse)
   endLoadingAnimation();
   setDeathsList(locationCovidResponse);
@@ -126,12 +120,13 @@ function setDeathsList(data: ICovidData) {
     p.textContent = new Date(value.stdDay).toLocaleDateString().slice(0, -1);
     li.appendChild(span);
     li.appendChild(p);
+    // deathsList!.appendChild(li);
     deathsList.appendChild(li);
   });
 }
 
 function clearDeathList() {
-  deathsList.innerHTML = null;
+  deathsList.innerHTML = '';
 }
 
 function setTotalDeathsByCountry(data: ICovidData) {
@@ -157,7 +152,7 @@ function setRecoveredList(data: ICovidData) {
 }
 
 function clearRecoveredList() {
-  recoveredList.innerHTML = null;
+  recoveredList.innerHTML = '';
 }
 
 function setTotalRecoveredByCountry(data: ICovidData) {
@@ -183,13 +178,15 @@ async function setupData() {
   setLastUpdatedTimestamp(data.items[0]);
 }
 
+let lineChart: any;
+
 function renderChart(data: string[], labels: string[]) {
   // const lineChart = $("#lineChart") as HTMLCanvasElement
   // const ctx = lineChart.getContext("2d");
   const ctx = ($("#lineChart") as HTMLCanvasElement).getContext("2d");
   Chart.defaults.color = "#f5eaea";
   Chart.defaults.font.family = "Exo 2";
-  new Chart(ctx, {
+  lineChart = new Chart(ctx!, {
     type: "line",
     data: {
       labels,
@@ -202,7 +199,9 @@ function renderChart(data: string[], labels: string[]) {
         },
       ],
     },
-    options: {},
+    options: {
+      maintainAspectRatio: false
+    },
   });
 }
 
@@ -213,7 +212,10 @@ function setChartData(data: ICovidData) {
     .map((value: any) =>
       new Date(value.stdDay).toLocaleDateString().slice(5, -1)
     );
-  console.log('chartData >>', chartData)
+  // console.log('chartData >>', chartData)
+  if (lineChart) {
+    lineChart.destroy()
+  }
   renderChart(chartData, chartLabel);
 }
 
